@@ -17,7 +17,7 @@ from config_loader import (
     validate_config,
 )
 from decision import DecisionResult, make_decision
-from google_routes import GoogleRoutesError, RouteDuration, fetch_traffic_duration
+from google_routes import GoogleRoutesError, RouteDuration, fetch_traffic_duration, fetch_transit_duration
 from imessage import IMessageError, send_imessage
 from storage import cleanup_old_records, has_successful_message_for_run_key, init_db, record_run
 
@@ -79,11 +79,13 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
         return 0
 
     route: RouteDuration | None = None
+    transit_route: RouteDuration | None = None
     decision: DecisionResult | None = None
     error_message: str | None = None
 
     try:
         route = fetch_traffic_duration(config)
+        transit_route = fetch_transit_duration(config)
         traffic = config["traffic"]
         decision = make_decision(
             current_drive_min=route.duration_min,
@@ -94,7 +96,13 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
             severe_delay_min=float(traffic["severe_delay_min"]),
             transit_advantage_buffer_min=float(traffic["transit_advantage_buffer_min"]),
         )
-        message = _render_configured_message(config, now=now, route=route, decision=decision)
+        message = _render_configured_message(
+            config,
+            now=now,
+            route=route,
+            transit_route=transit_route,
+            decision=decision,
+        )
     except GoogleRoutesError as exc:
         error_message = exc.friendly_message
         logger.error("Google Routes check failed: %s", exc.friendly_message)
@@ -126,6 +134,7 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
         now=now,
         run_key=run_key,
         route=route,
+        transit_route=transit_route,
         decision=decision,
         dry_run=effective_dry_run,
         send_enabled=effective_send_enabled,
@@ -177,9 +186,10 @@ def _render_configured_message(
     *,
     now: datetime,
     route: RouteDuration,
+    transit_route: RouteDuration,
     decision: DecisionResult,
 ) -> str:
-    context = _message_context(config, now=now, route=route, decision=decision)
+    context = _message_context(config, now=now, route=route, transit_route=transit_route, decision=decision)
     return config["message"]["template"].format(**context)
 
 
@@ -188,6 +198,7 @@ def _message_context(
     *,
     now: datetime,
     route: RouteDuration,
+    transit_route: RouteDuration,
     decision: DecisionResult,
 ) -> dict[str, str]:
     traffic = config["traffic"]
@@ -196,6 +207,7 @@ def _message_context(
         "current_time": now.strftime("%Y-%m-%d %H:%M %Z"),
         "recommendation": decision.recommendation,
         "current_drive_min": _format_minutes(route.duration_min),
+        "current_transit_min": _format_minutes(transit_route.duration_min),
         "baseline_min": _format_minutes(float(traffic["expected_shuttle_drive_min"])),
         "delay_min": _format_minutes(delay_min),
         "delay_min_signed": _format_signed_minutes(delay_min),
@@ -204,6 +216,8 @@ def _message_context(
         "reason": decision.reason,
         "origin_address": config["commute"]["origin_address"],
         "destination_address": config["commute"]["destination_address"],
+        "transit_origin_address": config["commute"]["transit_origin_address"],
+        "transit_destination_address": config["commute"]["transit_destination_address"],
     }
 
 
@@ -235,6 +249,7 @@ def _record_and_cleanup(
     send_enabled: bool,
     message_sent: bool,
     route: RouteDuration | None = None,
+    transit_route: RouteDuration | None = None,
     decision: DecisionResult | None = None,
     error_message: str | None = None,
 ) -> None:
@@ -247,7 +262,10 @@ def _record_and_cleanup(
         timestamp=now.isoformat(timespec="seconds"),
         origin_address=config["commute"]["origin_address"],
         destination_address=config["commute"]["destination_address"],
+        transit_origin_address=config["commute"]["transit_origin_address"],
+        transit_destination_address=config["commute"]["transit_destination_address"],
         current_drive_min=route.duration_min if route else None,
+        current_transit_min=transit_route.duration_min if transit_route else None,
         baseline_min=baseline_min,
         delay_min=delay_min,
         estimated_transit_min_low=float(traffic["estimated_transit_min_low"]),

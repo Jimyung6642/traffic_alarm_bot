@@ -114,6 +114,8 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     _require_string(errors, google, "routes_api_url", "google.routes_api_url")
     _require_string(errors, commute, "origin_address", "commute.origin_address")
     _require_string(errors, commute, "destination_address", "commute.destination_address")
+    _require_string(errors, commute, "transit_origin_address", "commute.transit_origin_address")
+    _require_string(errors, commute, "transit_destination_address", "commute.transit_destination_address")
     _require_string(errors, commute, "timezone", "commute.timezone")
     _require_string(errors, message, "template", "message.template")
     _require_string(errors, storage, "sqlite_path", "storage.sqlite_path")

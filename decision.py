@@ -36,7 +36,7 @@ def make_decision(
     if transit_is_meaningfully_better:
         return DecisionResult(
             recommendation=TAKE_NJ_TRANSIT,
-            reason="Current shuttle estimate is meaningfully longer than your configured NJ Transit estimate.",
+            reason="계산기 두드려보니 셔틀보다 NJ Transit이 훨씬 이득이에요. 오늘은 기차 쪽으로 갑시다~ 🤓🚆",
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
@@ -44,7 +44,7 @@ def make_decision(
     if traffic_is_severe:
         return DecisionResult(
             recommendation=TAKE_NJ_TRANSIT,
-            reason="Traffic is much heavier than your normal shuttle baseline.",
+            reason="오늘은 셔틀도 더위를 먹었는지 너무 느리네요. NJ Transit 타세요~ 🤓🚆",
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
@@ -52,14 +52,14 @@ def make_decision(
     if traffic_is_elevated:
         return DecisionResult(
             recommendation=TRAFFIC_ELEVATED,
-            reason="Traffic is elevated but not severe enough to strongly prefer NJ Transit.",
+            reason="차가 조금 밀리긴 하는데 아직 셔틀이 버틸 만해요. 커피 한 모금 마시고 셔틀 가시죠 ☕🚌",
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
 
     return DecisionResult(
         recommendation=TAKE_SHUTTLE,
-        reason="Traffic is close to your normal shuttle baseline.",
+        reason="오늘은 길이 꽤 얌전해요. 셔틀 타도 무난하게 갈 수 있겠습니다~ 🚌✨",
         delay_min=delay_min,
         transit_midpoint_min=transit_midpoint,
     )

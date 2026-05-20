@@ -14,7 +14,7 @@ from config_loader import (
     resolve_config_path,
     validate_config,
 )
-from google_routes import GoogleRoutesError, fetch_traffic_duration
+from google_routes import GoogleRoutesError, fetch_traffic_duration, fetch_transit_duration
 from imessage import IMessageError, send_imessage
 
 
@@ -83,6 +83,12 @@ def check_google(config_path: str | Path) -> int:
         print(f"[FAIL] {exc}")
         return 1
 
+    errors = validate_config(config)
+    if errors:
+        for error in errors:
+            print(f"[FAIL] {error}")
+        return 1
+
     if is_placeholder_api_key(config.get("google", {}).get("api_key")):
         print("[FAIL] Google API key missing. Add it to config.yaml under google.api_key.")
         return 1
@@ -90,11 +96,13 @@ def check_google(config_path: str | Path) -> int:
     print("[OK] Google API key found")
     try:
         route = fetch_traffic_duration(config)
+        transit_route = fetch_transit_duration(config)
     except GoogleRoutesError as exc:
         print(f"[FAIL] {exc.friendly_message}")
         return 1
 
     print(f"[OK] Google Routes API returned traffic duration: {round(route.duration_min)} min")
+    print(f"[OK] Google Routes API returned transit duration: {round(transit_route.duration_min)} min")
     return 0
 
 

@@ -39,21 +39,57 @@ def parse_duration_to_minutes(raw_duration: str) -> float:
 
 
 def fetch_traffic_duration(config: dict[str, Any], *, timeout_seconds: int = 15) -> RouteDuration:
+    commute_config = config["commute"]
+    return fetch_route_duration(
+        config,
+        origin_address=commute_config["origin_address"],
+        destination_address=commute_config["destination_address"],
+        travel_mode="DRIVE",
+        routing_preference="TRAFFIC_AWARE",
+        route_label="shuttle traffic",
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def fetch_transit_duration(config: dict[str, Any], *, timeout_seconds: int = 15) -> RouteDuration:
+    commute_config = config["commute"]
+    return fetch_route_duration(
+        config,
+        origin_address=commute_config["transit_origin_address"],
+        destination_address=commute_config["transit_destination_address"],
+        travel_mode="TRANSIT",
+        routing_preference=None,
+        route_label="transit",
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def fetch_route_duration(
+    config: dict[str, Any],
+    *,
+    origin_address: str,
+    destination_address: str,
+    travel_mode: str,
+    routing_preference: str | None,
+    route_label: str,
+    timeout_seconds: int = 15,
+) -> RouteDuration:
     if requests is None:
         raise GoogleRoutesError("The 'requests' package is not installed. Run: pip install -r requirements.txt")
 
     google_config = config["google"]
-    commute_config = config["commute"]
     api_key = google_config.get("api_key")
     if is_placeholder_api_key(api_key):
         raise GoogleRoutesError("Google API key missing. Add it to config.yaml under google.api_key.")
 
     payload = {
-        "origin": {"address": commute_config["origin_address"]},
-        "destination": {"address": commute_config["destination_address"]},
-        "travelMode": "DRIVE",
-        "routingPreference": "TRAFFIC_AWARE",
+        "origin": {"address": origin_address},
+        "destination": {"address": destination_address},
+        "travelMode": travel_mode,
     }
+    if routing_preference:
+        payload["routingPreference"] = routing_preference
+
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": str(api_key),
@@ -68,7 +104,7 @@ def fetch_traffic_duration(config: dict[str, Any], *, timeout_seconds: int = 15)
             timeout=timeout_seconds,
         )
     except requests.RequestException as exc:
-        raise GoogleRoutesError(f"Google Routes API request failed: {exc}") from exc
+        raise GoogleRoutesError(f"Google Routes API {route_label} request failed: {exc}") from exc
 
     if response.status_code >= 400:
         message = _extract_error_message(response)
@@ -81,15 +117,15 @@ def fetch_traffic_duration(config: dict[str, Any], *, timeout_seconds: int = 15)
     try:
         data = response.json()
     except ValueError as exc:
-        raise GoogleRoutesError("Google Routes API returned a non-JSON response.") from exc
+        raise GoogleRoutesError(f"Google Routes API returned a non-JSON response for {route_label}.") from exc
 
     routes = data.get("routes")
     if not isinstance(routes, list) or not routes:
-        raise GoogleRoutesError("Google Routes API returned no routes for the configured commute.")
+        raise GoogleRoutesError(f"Google Routes API returned no routes for the configured {route_label} route.")
 
     route = routes[0]
     if not isinstance(route, dict) or not isinstance(route.get("duration"), str):
-        raise GoogleRoutesError("Google Routes API response did not include routes.duration.")
+        raise GoogleRoutesError(f"Google Routes API {route_label} response did not include routes.duration.")
 
     try:
         duration_min = parse_duration_to_minutes(route["duration"])

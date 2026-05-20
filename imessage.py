@@ -12,7 +12,18 @@ on run argv
     set targetBuddy to item 1 of argv
     set targetMessage to item 2 of argv
     tell application "Messages"
-        set targetService to 1st service whose service type = iMessage
+        set targetService to missing value
+        repeat with candidateService in services
+            try
+                if (enabled of candidateService is true) and ((service type of candidateService as text) is "iMessage") then
+                    set targetService to candidateService
+                    exit repeat
+                end if
+            end try
+        end repeat
+        if targetService is missing value then
+            error "No enabled iMessage service is available. Sign in to Messages.app and enable iMessage."
+        end if
         set targetBuddyObject to buddy targetBuddy of targetService
         send targetMessage to targetBuddyObject
     end tell

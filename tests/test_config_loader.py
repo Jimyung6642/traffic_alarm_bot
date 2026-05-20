@@ -33,6 +33,8 @@ def _valid_config() -> dict[str, object]:
         "commute": {
             "origin_address": "Origin",
             "destination_address": "Destination",
+            "transit_origin_address": "Transit Origin",
+            "transit_destination_address": "Transit Destination",
             "timezone": "America/New_York",
         },
         "traffic": {
