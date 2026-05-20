@@ -1,0 +1,50 @@
+google:
+  api_key: ""
+  routes_api_url: "https://routes.googleapis.com/directions/v2:computeRoutes"
+
+commute:
+  origin_address: "Constitution Park, Fort Lee, NJ"
+  destination_address: "Columbia University Irving Medical Center, New York, NY"
+  timezone: "America/New_York"
+
+traffic:
+  expected_shuttle_drive_min: 25
+  estimated_transit_min_low: 45
+  estimated_transit_min_high: 60
+  warning_delay_min: 15
+  severe_delay_min: 25
+  transit_advantage_buffer_min: 10
+
+imessage:
+  send_enabled: false
+  dry_run: true
+  recipients:
+    - ""
+
+message:
+  template: |
+    CommuteBot - {current_time}
+
+    Recommendation: {recommendation}
+
+    Shuttle traffic estimate: {current_drive_min} min
+    Normal baseline: {baseline_min} min
+    Delay vs baseline: {delay_min_signed} min
+    NJ Transit estimate: ~{transit_min_low}-{transit_min_high} min
+
+    Reason: {reason}
+
+schedule:
+  enabled: true
+  times:
+    - "06:00"
+    - "06:25"
+    - "06:50"
+
+storage:
+  sqlite_path: "commute_history.sqlite3"
+  retention_days: 7
+
+logging:
+  log_path: "commute_bot.log"
+  log_level: "INFO"

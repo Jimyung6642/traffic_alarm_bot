@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+._*
+.__*
+
+commute_history.sqlite3
+commute_history.sqlite3-*
+commute_bot.log
+commute_bot.stdout.log
+commute_bot.stderr.log

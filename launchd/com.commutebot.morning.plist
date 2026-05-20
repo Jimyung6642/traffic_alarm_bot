@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.commutebot.morning</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/anaconda3/bin/python3</string>
+		<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/main.py</string>
+		<string>--config</string>
+		<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/config.yaml</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot</string>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Hour</key>
+			<integer>6</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>6</integer>
+			<key>Minute</key>
+			<integer>25</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>6</integer>
+			<key>Minute</key>
+			<integer>50</integer>
+		</dict>
+	</array>
+	<key>StandardOutPath</key>
+	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/commute_bot.stdout.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/commute_bot.stderr.log</string>
+	<key>RunAtLoad</key>
+	<false/>
+</dict>
+</plist>
