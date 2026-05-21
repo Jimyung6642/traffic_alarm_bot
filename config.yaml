@@ -35,8 +35,6 @@ message:
   template: |
     🌞출근 알리미🌞
 
-    추천 출근 방법: {recommendation}
-
     {reason}
 
     🚎현재 컨팍에서 셔틀 타면 도착까지 걸리는 시간: {current_drive_min} 분

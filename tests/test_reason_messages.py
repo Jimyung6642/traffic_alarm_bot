@@ -4,9 +4,8 @@ import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from decision import DecisionResult, TAKE_NJ_TRANSIT, TAKE_SHUTTLE
+from decision import DecisionResult, TAKE_NJ_TRANSIT, TAKE_SHUTTLE, compose_reason
 from google_weather import CurrentWeather, DailyWeather
-from reason_messages import compose_reason
 
 
 class ReasonMessagesTests(unittest.TestCase):

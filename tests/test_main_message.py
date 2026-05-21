@@ -70,7 +70,6 @@ class MainMessageTests(unittest.TestCase):
         self.assertIn("Partly sunny", context["daily_weather_summary"])
         self.assertIn("Traffic is close to your normal shuttle baseline.", context["reason"])
         self.assertIn("셔틀", context["reason"])
-        self.assertEqual(context["traffic_reason"], "Traffic is close to your normal shuttle baseline.")
 
     def test_rendered_message_keeps_traffic_recommendation_when_weather_is_unavailable(self) -> None:
         config = {

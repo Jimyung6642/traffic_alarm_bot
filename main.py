@@ -16,7 +16,7 @@ from config_loader import (
     resolve_path,
     validate_config,
 )
-from decision import DecisionResult, make_decision
+from decision import DecisionResult, compose_reason, make_decision
 from google_routes import GoogleRoutesError, RouteDuration, fetch_traffic_duration, fetch_transit_duration
 from google_weather import (
     CurrentWeather,
@@ -26,7 +26,6 @@ from google_weather import (
     fetch_daily_weather,
 )
 from imessage import IMessageError, send_imessage
-from reason_messages import compose_reason
 from storage import cleanup_old_records, has_successful_message_for_run_key, init_db, record_run
 
 
@@ -259,7 +258,6 @@ def _message_context(
             current_weather=current_weather,
             daily_weather=daily_weather,
         ),
-        "traffic_reason": decision.reason,
         "origin_address": config["commute"]["origin_address"],
         "destination_address": config["commute"]["destination_address"],
         "transit_origin_address": config["commute"]["transit_origin_address"],
