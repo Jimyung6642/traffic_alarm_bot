@@ -18,7 +18,15 @@ from config_loader import (
 )
 from decision import DecisionResult, make_decision
 from google_routes import GoogleRoutesError, RouteDuration, fetch_traffic_duration, fetch_transit_duration
+from google_weather import (
+    CurrentWeather,
+    DailyWeather,
+    GoogleWeatherError,
+    fetch_current_weather,
+    fetch_daily_weather,
+)
 from imessage import IMessageError, send_imessage
+from reason_messages import compose_reason
 from storage import cleanup_old_records, has_successful_message_for_run_key, init_db, record_run
 
 
@@ -27,6 +35,8 @@ FALLBACK_MESSAGE = (
     "CommuteBot could not check traffic today. Please manually check traffic before "
     "choosing shuttle vs NJ Transit."
 )
+WEATHER_UNAVAILABLE = "Unavailable"
+WEATHER_VALUE_UNAVAILABLE = "N/A"
 
 
 def main() -> int:
@@ -80,6 +90,9 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
 
     route: RouteDuration | None = None
     transit_route: RouteDuration | None = None
+    current_weather: CurrentWeather | None = None
+    daily_weather: DailyWeather | None = None
+    weather_error: str | None = None
     decision: DecisionResult | None = None
     error_message: str | None = None
 
@@ -96,11 +109,23 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
             severe_delay_min=float(traffic["severe_delay_min"]),
             transit_advantage_buffer_min=float(traffic["transit_advantage_buffer_min"]),
         )
+        if _weather_enabled(config):
+            try:
+                current_weather = fetch_current_weather(config)
+                daily_weather = fetch_daily_weather(config)
+            except GoogleWeatherError as exc:
+                weather_error = exc.friendly_message
+                logger.warning("Google Weather check failed: %s", exc.friendly_message)
+                if exc.details:
+                    logger.warning("Google Weather details: %s", exc.details)
         message = _render_configured_message(
             config,
             now=now,
             route=route,
             transit_route=transit_route,
+            current_weather=current_weather,
+            daily_weather=daily_weather,
+            weather_error=weather_error,
             decision=decision,
         )
     except GoogleRoutesError as exc:
@@ -188,8 +213,20 @@ def _render_configured_message(
     route: RouteDuration,
     transit_route: RouteDuration,
     decision: DecisionResult,
+    current_weather: CurrentWeather | None = None,
+    daily_weather: DailyWeather | None = None,
+    weather_error: str | None = None,
 ) -> str:
-    context = _message_context(config, now=now, route=route, transit_route=transit_route, decision=decision)
+    context = _message_context(
+        config,
+        now=now,
+        route=route,
+        transit_route=transit_route,
+        decision=decision,
+        current_weather=current_weather,
+        daily_weather=daily_weather,
+        weather_error=weather_error,
+    )
     return config["message"]["template"].format(**context)
 
 
@@ -200,10 +237,13 @@ def _message_context(
     route: RouteDuration,
     transit_route: RouteDuration,
     decision: DecisionResult,
+    current_weather: CurrentWeather | None = None,
+    daily_weather: DailyWeather | None = None,
+    weather_error: str | None = None,
 ) -> dict[str, str]:
     traffic = config["traffic"]
     delay_min = decision.delay_min
-    return {
+    context = {
         "current_time": now.strftime("%Y-%m-%d %H:%M %Z"),
         "recommendation": decision.recommendation,
         "current_drive_min": _format_minutes(route.duration_min),
@@ -213,12 +253,27 @@ def _message_context(
         "delay_min_signed": _format_signed_minutes(delay_min),
         "transit_min_low": _format_minutes(float(traffic["estimated_transit_min_low"])),
         "transit_min_high": _format_minutes(float(traffic["estimated_transit_min_high"])),
-        "reason": decision.reason,
+        "reason": compose_reason(
+            decision=decision,
+            now=now,
+            current_weather=current_weather,
+            daily_weather=daily_weather,
+        ),
+        "traffic_reason": decision.reason,
         "origin_address": config["commute"]["origin_address"],
         "destination_address": config["commute"]["destination_address"],
         "transit_origin_address": config["commute"]["transit_origin_address"],
         "transit_destination_address": config["commute"]["transit_destination_address"],
     }
+    context.update(
+        _weather_message_context(
+            config,
+            current_weather=current_weather,
+            daily_weather=daily_weather,
+            weather_error=weather_error,
+        )
+    )
+    return context
 
 
 def _fallback_message(config: dict[str, Any], *, now: datetime, reason: str) -> str:
@@ -237,6 +292,111 @@ def _format_minutes(value: float) -> str:
 def _format_signed_minutes(value: float) -> str:
     rounded = int(round(value))
     return f"+{rounded}" if rounded > 0 else str(rounded)
+
+
+def _weather_enabled(config: dict[str, Any]) -> bool:
+    weather = config.get("weather")
+    return isinstance(weather, dict) and bool(weather.get("enabled", False))
+
+
+def _weather_message_context(
+    config: dict[str, Any],
+    *,
+    current_weather: CurrentWeather | None,
+    daily_weather: DailyWeather | None,
+    weather_error: str | None,
+) -> dict[str, str]:
+    weather_config = config.get("weather")
+    weather_location = config["commute"]["origin_address"]
+    if isinstance(weather_config, dict):
+        raw_label = weather_config.get("location_label")
+        if isinstance(raw_label, str) and raw_label.strip():
+            weather_location = raw_label.strip()
+
+    if current_weather is None:
+        current_weather_fields = {
+            "current_weather_summary": WEATHER_UNAVAILABLE,
+            "current_weather_condition": WEATHER_UNAVAILABLE,
+            "current_temp_f": WEATHER_VALUE_UNAVAILABLE,
+            "current_feels_like_f": WEATHER_VALUE_UNAVAILABLE,
+            "current_precip_percent": WEATHER_VALUE_UNAVAILABLE,
+        }
+    else:
+        current_weather_fields = {
+            "current_weather_summary": _format_current_weather_summary(current_weather),
+            "current_weather_condition": current_weather.condition,
+            "current_temp_f": _format_weather_number(current_weather.temperature_degrees),
+            "current_feels_like_f": _format_weather_number(current_weather.feels_like_degrees),
+            "current_precip_percent": _format_weather_number(current_weather.precipitation_percent),
+        }
+
+    if daily_weather is None:
+        daily_weather_fields = {
+            "daily_weather_summary": WEATHER_UNAVAILABLE,
+            "daily_weather_condition": WEATHER_UNAVAILABLE,
+            "daily_high_f": WEATHER_VALUE_UNAVAILABLE,
+            "daily_low_f": WEATHER_VALUE_UNAVAILABLE,
+            "daily_precip_percent": WEATHER_VALUE_UNAVAILABLE,
+            "daily_uv_index": WEATHER_VALUE_UNAVAILABLE,
+        }
+    else:
+        daily_weather_fields = {
+            "daily_weather_summary": _format_daily_weather_summary(daily_weather),
+            "daily_weather_condition": daily_weather.condition,
+            "daily_high_f": _format_weather_number(daily_weather.high_degrees),
+            "daily_low_f": _format_weather_number(daily_weather.low_degrees),
+            "daily_precip_percent": _format_weather_number(daily_weather.precipitation_percent),
+            "daily_uv_index": _format_weather_number(daily_weather.uv_index),
+        }
+
+    return {
+        "weather_location": weather_location,
+        "weather_error": weather_error or "",
+        **current_weather_fields,
+        **daily_weather_fields,
+    }
+
+
+def _format_current_weather_summary(weather: CurrentWeather) -> str:
+    temperature = _format_temperature(weather.temperature_degrees, weather.temperature_unit)
+    feels_like = _format_temperature(weather.feels_like_degrees, weather.temperature_unit)
+    precipitation = _format_percent(weather.precipitation_percent)
+    return f"{weather.condition}, {temperature} (feels like {feels_like}), precip {precipitation}"
+
+
+def _format_daily_weather_summary(weather: DailyWeather) -> str:
+    high = _format_temperature(weather.high_degrees, weather.temperature_unit)
+    low = _format_temperature(weather.low_degrees, weather.temperature_unit)
+    precipitation = _format_percent(weather.precipitation_percent)
+    uv_index = _format_weather_number(weather.uv_index)
+    return f"{weather.condition}, high {high} / low {low}, precip {precipitation}, UV {uv_index}"
+
+
+def _format_temperature(value: float | None, unit: str | None) -> str:
+    if value is None:
+        return WEATHER_VALUE_UNAVAILABLE
+    unit_label = _temperature_unit_label(unit)
+    return f"{_format_weather_number(value)} {unit_label}" if unit_label else _format_weather_number(value)
+
+
+def _temperature_unit_label(unit: str | None) -> str:
+    if unit == "FAHRENHEIT":
+        return "F"
+    if unit == "CELSIUS":
+        return "C"
+    return ""
+
+
+def _format_percent(value: int | None) -> str:
+    if value is None:
+        return WEATHER_VALUE_UNAVAILABLE
+    return f"{_format_weather_number(value)}%"
+
+
+def _format_weather_number(value: float | int | None) -> str:
+    if value is None:
+        return WEATHER_VALUE_UNAVAILABLE
+    return str(int(round(value)))
 
 
 def _record_and_cleanup(

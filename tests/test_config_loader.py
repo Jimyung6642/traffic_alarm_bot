@@ -26,10 +26,26 @@ class ConfigLoaderTests(unittest.TestCase):
 
         self.assertIn("traffic.warning_delay_min must be less than traffic.severe_delay_min", errors)
 
+    def test_validate_config_rejects_invalid_weather_location(self) -> None:
+        config = _valid_config()
+        config["weather"]["latitude"] = 120
+
+        errors = validate_config(config)
+
+        self.assertIn("weather.latitude must be a number between -90 and 90", errors)
+
 
 def _valid_config() -> dict[str, object]:
     return {
         "google": {"api_key": "PUT_API_KEY_HERE", "routes_api_url": "https://example.com"},
+        "weather": {
+            "enabled": True,
+            "latitude": 40.85603,
+            "longitude": -73.97477,
+            "location_label": "Constitution Park, Fort Lee",
+            "units_system": "IMPERIAL",
+            "daily_days": 1,
+        },
         "commute": {
             "origin_address": "Origin",
             "destination_address": "Destination",

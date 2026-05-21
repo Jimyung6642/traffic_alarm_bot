@@ -110,6 +110,7 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     schedule = get_section(config, "schedule")
     storage = get_section(config, "storage")
     logging_config = get_section(config, "logging")
+    weather = config.get("weather")
 
     _require_string(errors, google, "routes_api_url", "google.routes_api_url")
     _require_string(errors, commute, "origin_address", "commute.origin_address")
@@ -153,6 +154,12 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     if not isinstance(recipients, list) or not all(isinstance(item, str) and item.strip() for item in recipients):
         errors.append("imessage.recipients must be a non-empty list of phone numbers or Apple IDs")
 
+    if weather is not None:
+        if not isinstance(weather, dict):
+            errors.append("weather must be a mapping")
+        else:
+            _validate_weather_section(errors, weather)
+
     if not isinstance(schedule.get("enabled"), bool):
         errors.append("schedule.enabled must be true or false")
     try:
@@ -181,3 +188,36 @@ def _require_string(errors: list[str], section: dict[str, Any], key: str, label:
     value = section.get(key)
     if not isinstance(value, str) or not value.strip():
         errors.append(f"{label} must be a non-empty string")
+
+
+def _validate_weather_section(errors: list[str], weather: dict[str, Any]) -> None:
+    enabled = weather.get("enabled", False)
+    if not isinstance(enabled, bool):
+        errors.append("weather.enabled must be true or false")
+    if enabled is not True:
+        return
+
+    _require_number_in_range(errors, weather, "latitude", "weather.latitude", -90, 90)
+    _require_number_in_range(errors, weather, "longitude", "weather.longitude", -180, 180)
+    _require_string(errors, weather, "location_label", "weather.location_label")
+
+    units_system = weather.get("units_system")
+    if units_system not in {"IMPERIAL", "METRIC"}:
+        errors.append("weather.units_system must be IMPERIAL or METRIC")
+
+    daily_days = weather.get("daily_days")
+    if not isinstance(daily_days, int) or isinstance(daily_days, bool) or not 1 <= daily_days <= 10:
+        errors.append("weather.daily_days must be an integer between 1 and 10")
+
+
+def _require_number_in_range(
+    errors: list[str],
+    section: dict[str, Any],
+    key: str,
+    label: str,
+    minimum: float,
+    maximum: float,
+) -> None:
+    value = section.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not minimum <= value <= maximum:
+        errors.append(f"{label} must be a number between {minimum:g} and {maximum:g}")

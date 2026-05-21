@@ -17,6 +17,8 @@ python3 -m pip install -r requirements.txt
 Edit `config.yaml`.
 
 - Add your Google Routes API key under `google.api_key`.
+- Enable Google Weather API for the same key if `weather.enabled` is true.
+- Edit `weather.latitude`, `weather.longitude`, and `weather.location_label` for the weather shown in messages.
 - Edit `commute.transit_origin_address` and `commute.transit_destination_address` for the live NJ Transit/GWB estimate shown in messages.
 - Edit `traffic.expected_shuttle_drive_min`, warning/severe thresholds, and `traffic.transit_advantage_buffer_min`.
 - Edit `traffic.estimated_transit_min_low` and `traffic.estimated_transit_min_high` for the manual NJ Transit estimate.
@@ -71,6 +73,8 @@ python main.py --config path/to/config.yaml
 `--dry-run` always prints the exact message instead of sending it. `--no-send` disables real sending for that run even if config enables it.
 
 If either Google Routes lookup fails or the API key is missing, CommuteBot does not make a confident commute recommendation. It prints or sends a fallback message asking you to manually check traffic.
+
+If Google Weather lookup fails but Routes succeeds, CommuteBot still prints or sends the commute recommendation and renders weather fields as unavailable.
 
 ## Scheduling With launchd
 
@@ -130,6 +134,13 @@ CommuteBot uses two Google Routes API requests per normal run:
 - a `TRANSIT` estimate from `commute.transit_origin_address` to `commute.transit_destination_address`
 
 The live transit estimate is exposed to message templates as `{current_transit_min}`. It is display-only in V1 because the configured transit destination is GWB terminal, while the shuttle destination is CUMC.
+
+If `weather.enabled` is true, CommuteBot also uses two Google Weather API requests per normal run:
+
+- current conditions for `weather.latitude` and `weather.longitude`
+- the first day from `forecast/days:lookup`, controlled by `weather.daily_days`
+
+Weather is exposed to message templates as `{current_weather_summary}` and `{daily_weather_summary}`, plus individual temperature, condition, precipitation, and UV placeholders.
 
 The recommendation compares the traffic-aware shuttle driving estimate to your configured baseline and manual NJ Transit estimate.
 

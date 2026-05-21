@@ -15,6 +15,7 @@ from config_loader import (
     validate_config,
 )
 from google_routes import GoogleRoutesError, fetch_traffic_duration, fetch_transit_duration
+from google_weather import GoogleWeatherError, fetch_current_weather, fetch_daily_weather
 from imessage import IMessageError, send_imessage
 
 
@@ -103,6 +104,26 @@ def check_google(config_path: str | Path) -> int:
 
     print(f"[OK] Google Routes API returned traffic duration: {round(route.duration_min)} min")
     print(f"[OK] Google Routes API returned transit duration: {round(transit_route.duration_min)} min")
+
+    if isinstance(config.get("weather"), dict) and config["weather"].get("enabled", False):
+        try:
+            current_weather = fetch_current_weather(config)
+            daily_weather = fetch_daily_weather(config)
+        except GoogleWeatherError as exc:
+            print(f"[FAIL] {exc.friendly_message}")
+            return 1
+
+        current_temp = (
+            str(round(current_weather.temperature_degrees))
+            if current_weather.temperature_degrees is not None
+            else "N/A"
+        )
+        print(
+            "[OK] Google Weather API returned current conditions: "
+            f"{current_weather.condition}, {current_temp}"
+        )
+        print(f"[OK] Google Weather API returned daily forecast: {daily_weather.condition}")
+
     return 0
 
 

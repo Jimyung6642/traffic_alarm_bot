@@ -1,14 +1,24 @@
 google:
-  api_key: ""
+  api_key: "YOUR_API_KEY"
   routes_api_url: "https://routes.googleapis.com/directions/v2:computeRoutes"
+
+weather:
+  enabled: true
+  latitude: 40.85603
+  longitude: -73.97477
+  location_label: "Constitution Park, Fort Lee"
+  units_system: "IMPERIAL"
+  daily_days: 1
 
 commute:
   origin_address: "Constitution Park, Fort Lee, NJ"
   destination_address: "Columbia University Irving Medical Center, New York, NY"
+  transit_origin_address: "HONG BAN JANG, Fort Lee, NJ"
+  transit_destination_address: "George Washington Bridge Bus Station"
   timezone: "America/New_York"
 
 traffic:
-  expected_shuttle_drive_min: 25
+  expected_shuttle_drive_min: 20
   estimated_transit_min_low: 45
   estimated_transit_min_high: 60
   warning_delay_min: 15
@@ -19,26 +29,24 @@ imessage:
   send_enabled: false
   dry_run: true
   recipients:
-    - ""
+    - "YOUR_PHONE_NUMBER"
 
 message:
   template: |
-    CommuteBot - {current_time}
+    🌞출근 알리미🌞
 
-    Recommendation: {recommendation}
+    추천 출근 방법: {recommendation}
 
-    Shuttle traffic estimate: {current_drive_min} min
-    Normal baseline: {baseline_min} min
-    Delay vs baseline: {delay_min_signed} min
-    NJ Transit estimate: ~{transit_min_low}-{transit_min_high} min
+    {reason}
 
-    Reason: {reason}
+    🚎현재 컨팍에서 셔틀 타면 도착까지 걸리는 시간: {current_drive_min} 분
+    🚎NJTransit 타면 GWB 터미널까지 걸리는 시간: {current_transit_min} 분
+    🌤현재 날씨: {current_weather_summary}
+    📅오늘 예보: {daily_weather_summary}
 
 schedule:
   enabled: true
   times:
-    - "06:00"
-    - "06:25"
     - "06:50"
 
 storage:
