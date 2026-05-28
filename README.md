@@ -41,10 +41,13 @@ Set either value back to safe mode to disable real sending.
 ```bash
 python setup_check.py --check-config
 python setup_check.py --check-google
+python setup_check.py --check-imessage
 python main.py --dry-run
 ```
 
-After Messages.app is configured and real sending is intentionally enabled:
+Run `--check-imessage` from an interactive Terminal session so macOS can show the Automation prompt. If prompted, allow `python3.13` to control Messages.
+
+After Messages.app is configured, Automation permission is approved, and real sending is intentionally enabled:
 
 ```bash
 python setup_check.py --test-imessage --recipient "+1XXXXXXXXXX"
@@ -56,6 +59,7 @@ Expected check output looks like:
 [OK] config.yaml found
 [OK] Google API key found
 [OK] Google Routes API returned traffic duration: 42 min
+[OK] Messages.app Automation permission is available
 [FAIL] Google API key missing. Add it to config.yaml under google.api_key.
 [FAIL] Messages.app automation permission denied
 [FAIL] send_enabled is false, real iMessage sending disabled
@@ -78,35 +82,31 @@ If Google Weather lookup fails but Routes succeeds, CommuteBot still prints or s
 
 ## Scheduling With launchd
 
-Generate the plist from `config.yaml`:
+Generate and install the LaunchAgent from `config.yaml`:
 
 ```bash
-python setup_schedule.py
+python setup_schedule.py --install
 ```
 
-Install it:
+This writes:
 
-```bash
-mkdir -p ~/Library/LaunchAgents
-cp launchd/com.commutebot.morning.plist ~/Library/LaunchAgents/
-
-launchctl unload ~/Library/LaunchAgents/com.commutebot.morning.plist 2>/dev/null
-launchctl load ~/Library/LaunchAgents/com.commutebot.morning.plist
-```
+- `~/Library/Application Support/CommuteBot/run_commutebot.sh`
+- `~/Library/LaunchAgents/com.commutebot.morning.plist`
+- launchd stdout/stderr logs under `~/Library/Logs/CommuteBot/`
 
 Confirm it is loaded:
 
 ```bash
-launchctl list | grep commutebot
+launchctl print gui/$(id -u)/com.commutebot.morning
 ```
 
 Unload it:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.commutebot.morning.plist
+launchctl bootout gui/$(id -u)/com.commutebot.morning
 ```
 
-Run `python setup_schedule.py` again after editing `schedule.times`, then reinstall and reload the plist.
+Run `python setup_schedule.py --install` again after editing `schedule.times`.
 
 ## macOS Messages Requirements
 
@@ -122,7 +122,7 @@ If the Mac is asleep at the scheduled time, the bot may not run as expected. Adj
 ## Logs and History
 
 - Runtime log: configured by `logging.log_path`, default `commute_bot.log`.
-- Launchd stdout/stderr logs: generated next to the runtime log as `*.stdout.log` and `*.stderr.log`.
+- Launchd stdout/stderr logs: `~/Library/Logs/CommuteBot/morning.stdout.log` and `~/Library/Logs/CommuteBot/morning.stderr.log`.
 - SQLite history: configured by `storage.sqlite_path`, default `commute_history.sqlite3`.
 - Records older than `storage.retention_days` are deleted automatically after each run.
 

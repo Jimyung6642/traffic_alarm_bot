@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from decision import DecisionResult, TAKE_SHUTTLE
+from decision import DecisionResult, TAKE_SHUTTLE, TRAFFIC_PROFILE_SMOOTH
 from google_routes import RouteDuration
 from google_weather import CurrentWeather, DailyWeather
 from main import _message_context, _render_configured_message
@@ -48,8 +48,7 @@ class MainMessageTests(unittest.TestCase):
                 uv_index=4,
             ),
             decision=DecisionResult(
-                recommendation=TAKE_SHUTTLE,
-                reason="Traffic is close to your normal shuttle baseline.",
+                traffic_profile=TRAFFIC_PROFILE_SMOOTH,
                 delay_min=-9.6,
                 transit_midpoint_min=52.5,
             ),
@@ -68,7 +67,6 @@ class MainMessageTests(unittest.TestCase):
         self.assertEqual(context["daily_uv_index"], "4")
         self.assertIn("Sunny", context["current_weather_summary"])
         self.assertIn("Partly sunny", context["daily_weather_summary"])
-        self.assertIn("Traffic is close to your normal shuttle baseline.", context["reason"])
         self.assertIn("셔틀", context["reason"])
 
     def test_rendered_message_keeps_traffic_recommendation_when_weather_is_unavailable(self) -> None:
@@ -93,8 +91,7 @@ class MainMessageTests(unittest.TestCase):
             route=RouteDuration(duration_min=15.4, static_duration_min=None, distance_meters=None),
             transit_route=RouteDuration(duration_min=12.6, static_duration_min=None, distance_meters=None),
             decision=DecisionResult(
-                recommendation=TAKE_SHUTTLE,
-                reason="Traffic is close to your normal shuttle baseline.",
+                traffic_profile=TRAFFIC_PROFILE_SMOOTH,
                 delay_min=-9.6,
                 transit_midpoint_min=52.5,
             ),

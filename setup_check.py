@@ -16,7 +16,7 @@ from config_loader import (
 )
 from google_routes import GoogleRoutesError, fetch_traffic_duration, fetch_transit_duration
 from google_weather import GoogleWeatherError, fetch_current_weather, fetch_daily_weather
-from imessage import IMessageError, send_imessage
+from imessage import IMessageError, check_messages_automation, send_imessage
 
 
 def main() -> int:
@@ -24,11 +24,16 @@ def main() -> int:
     parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Path to config.yaml")
     parser.add_argument("--check-config", action="store_true", help="Validate config.yaml")
     parser.add_argument("--check-google", action="store_true", help="Make one Google Routes API test request")
+    parser.add_argument(
+        "--check-imessage",
+        action="store_true",
+        help="Check Messages.app Automation permission without sending a message",
+    )
     parser.add_argument("--test-imessage", action="store_true", help="Send one test iMessage if real sending is enabled")
     parser.add_argument("--recipient", help="Recipient for --test-imessage")
     args = parser.parse_args()
 
-    if not (args.check_config or args.check_google or args.test_imessage):
+    if not (args.check_config or args.check_google or args.check_imessage or args.test_imessage):
         parser.print_help()
         return 2
 
@@ -37,6 +42,8 @@ def main() -> int:
         exit_code = max(exit_code, check_config(args.config))
     if args.check_google:
         exit_code = max(exit_code, check_google(args.config))
+    if args.check_imessage:
+        exit_code = max(exit_code, check_imessage())
     if args.test_imessage:
         exit_code = max(exit_code, test_imessage(args.config, args.recipient))
     return exit_code
@@ -124,6 +131,17 @@ def check_google(config_path: str | Path) -> int:
         )
         print(f"[OK] Google Weather API returned daily forecast: {daily_weather.condition}")
 
+    return 0
+
+
+def check_imessage() -> int:
+    try:
+        check_messages_automation()
+    except IMessageError as exc:
+        print(f"[FAIL] {exc}")
+        return 1
+
+    print("[OK] Messages.app Automation permission is available")
     return 0
 
 

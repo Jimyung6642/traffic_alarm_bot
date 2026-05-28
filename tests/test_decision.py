@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-from decision import TAKE_NJ_TRANSIT, TAKE_SHUTTLE, TRAFFIC_ELEVATED, make_decision
+from decision import (
+    TAKE_NJ_TRANSIT,
+    TAKE_SHUTTLE,
+    TRAFFIC_ELEVATED,
+    TRAFFIC_PROFILE_ELEVATED,
+    TRAFFIC_PROFILE_SMOOTH,
+    TRAFFIC_PROFILE_TRANSIT,
+    make_decision,
+    recommendation_for_traffic_profile,
+)
 
 
 class DecisionTests(unittest.TestCase):
@@ -17,8 +26,8 @@ class DecisionTests(unittest.TestCase):
             transit_advantage_buffer_min=10,
         )
 
-        self.assertEqual(result.recommendation, TAKE_SHUTTLE)
-        self.assertIn("셔틀", result.reason)
+        self.assertEqual(result.traffic_profile, TRAFFIC_PROFILE_SMOOTH)
+        self.assertEqual(recommendation_for_traffic_profile(result.traffic_profile), TAKE_SHUTTLE)
 
     def test_elevated_traffic_still_accepts_shuttle(self) -> None:
         result = make_decision(
@@ -31,8 +40,8 @@ class DecisionTests(unittest.TestCase):
             transit_advantage_buffer_min=10,
         )
 
-        self.assertEqual(result.recommendation, TRAFFIC_ELEVATED)
-        self.assertIn("☕", result.reason)
+        self.assertEqual(result.traffic_profile, TRAFFIC_PROFILE_ELEVATED)
+        self.assertEqual(recommendation_for_traffic_profile(result.traffic_profile), TRAFFIC_ELEVATED)
 
     def test_severe_delay_takes_nj_transit(self) -> None:
         result = make_decision(
@@ -45,8 +54,8 @@ class DecisionTests(unittest.TestCase):
             transit_advantage_buffer_min=10,
         )
 
-        self.assertEqual(result.recommendation, TAKE_NJ_TRANSIT)
-        self.assertIn("NJ Transit", result.reason)
+        self.assertEqual(result.traffic_profile, TRAFFIC_PROFILE_TRANSIT)
+        self.assertEqual(recommendation_for_traffic_profile(result.traffic_profile), TAKE_NJ_TRANSIT)
 
     def test_transit_advantage_overrides_lower_delay(self) -> None:
         result = make_decision(
@@ -59,8 +68,8 @@ class DecisionTests(unittest.TestCase):
             transit_advantage_buffer_min=10,
         )
 
-        self.assertEqual(result.recommendation, TAKE_NJ_TRANSIT)
-        self.assertIn("🚆", result.reason)
+        self.assertEqual(result.traffic_profile, TRAFFIC_PROFILE_TRANSIT)
+        self.assertEqual(recommendation_for_traffic_profile(result.traffic_profile), TAKE_NJ_TRANSIT)
 
 
 if __name__ == "__main__":

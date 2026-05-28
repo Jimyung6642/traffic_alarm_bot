@@ -6,38 +6,42 @@
 	<string>com.commutebot.morning</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/opt/homebrew/anaconda3/bin/python3</string>
-		<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/main.py</string>
-		<string>--config</string>
-		<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/config.yaml</string>
+		<string>/bin/zsh</string>
+		<string>/Users/jimyungpark/Library/Application Support/CommuteBot/run_commutebot.sh</string>
 	</array>
 	<key>WorkingDirectory</key>
-	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot</string>
+	<string>/private/tmp</string>
 	<key>StartCalendarInterval</key>
 	<array>
 		<dict>
 			<key>Hour</key>
 			<integer>6</integer>
 			<key>Minute</key>
-			<integer>0</integer>
+			<integer>50</integer>
 		</dict>
 		<dict>
 			<key>Hour</key>
-			<integer>6</integer>
+			<integer>7</integer>
 			<key>Minute</key>
-			<integer>25</integer>
+			<integer>30</integer>
 		</dict>
 		<dict>
 			<key>Hour</key>
-			<integer>6</integer>
+			<integer>7</integer>
 			<key>Minute</key>
 			<integer>50</integer>
 		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>8</integer>
+			<key>Minute</key>
+			<integer>10</integer>
+		</dict>
 	</array>
 	<key>StandardOutPath</key>
-	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/commute_bot.stdout.log</string>
+	<string>/Users/jimyungpark/Library/Logs/CommuteBot/morning.stdout.log</string>
 	<key>StandardErrorPath</key>
-	<string>/Volumes/Extreme SSD/Research/codebase/traffic_alarm_bot/commute_bot.stderr.log</string>
+	<string>/Users/jimyungpark/Library/Logs/CommuteBot/morning.stderr.log</string>
 	<key>RunAtLoad</key>
 	<false/>
 </dict>

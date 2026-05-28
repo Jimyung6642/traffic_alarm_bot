@@ -9,12 +9,14 @@ from google_weather import CurrentWeather, DailyWeather
 TAKE_SHUTTLE = "셔틀"
 TRAFFIC_ELEVATED = "셔틀"
 TAKE_NJ_TRANSIT = "NJ 트랜짓"
+TRAFFIC_PROFILE_SMOOTH = "smooth"
+TRAFFIC_PROFILE_ELEVATED = "elevated"
+TRAFFIC_PROFILE_TRANSIT = "transit"
 
 
 @dataclass(frozen=True)
 class DecisionResult:
-    recommendation: str
-    reason: str
+    traffic_profile: str
     delay_min: float
     transit_midpoint_min: float
 
@@ -38,34 +40,38 @@ def make_decision(
 
     if transit_is_meaningfully_better:
         return DecisionResult(
-            recommendation=TAKE_NJ_TRANSIT,
-            reason="계산기 살짝 톡톡 해봤더니 NJ Transit이 훨씬 이득이에요. 오늘은 트랜짓 타고 슝 가요~ 🤓🚆✨",
+            traffic_profile=TRAFFIC_PROFILE_TRANSIT,
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
 
     if traffic_is_severe:
         return DecisionResult(
-            recommendation=TAKE_NJ_TRANSIT,
-            reason="오늘 셔틀길이 많이 삐끗했어요. NJ Transit으로 갈아타고 시간 지켜봅시다~ 🚆💨",
+            traffic_profile=TRAFFIC_PROFILE_TRANSIT,
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
 
     if traffic_is_elevated:
         return DecisionResult(
-            recommendation=TRAFFIC_ELEVATED,
-            reason="차가 살짝 느릿느릿하지만 아직 셔틀이 버틸 만해요. 커피 한 모금 하고 셔틀로 가요 ☕🚌✨",
+            traffic_profile=TRAFFIC_PROFILE_ELEVATED,
             delay_min=delay_min,
             transit_midpoint_min=transit_midpoint,
         )
 
     return DecisionResult(
-        recommendation=TAKE_SHUTTLE,
-        reason="오늘 길이 꽤 순둥순둥해요. 셔틀 타고 편하게 가도 좋겠습니다~ 🚌🌿✨",
+        traffic_profile=TRAFFIC_PROFILE_SMOOTH,
         delay_min=delay_min,
         transit_midpoint_min=transit_midpoint,
     )
+
+
+def recommendation_for_traffic_profile(traffic_profile: str) -> str:
+    if traffic_profile == TRAFFIC_PROFILE_TRANSIT:
+        return TAKE_NJ_TRANSIT
+    if traffic_profile == TRAFFIC_PROFILE_ELEVATED:
+        return TRAFFIC_ELEVATED
+    return TAKE_SHUTTLE
 
 
 def compose_reason(
@@ -76,21 +82,8 @@ def compose_reason(
     daily_weather: DailyWeather | None = None,
 ) -> str:
     weather_profile = _classify_weather(current_weather=current_weather, daily_weather=daily_weather)
-    if weather_profile == "unavailable":
-        return decision.reason
-
-    traffic_profile = _classify_traffic(decision)
-    variants = WEATHER_TRAFFIC_REASONS[(traffic_profile, weather_profile)]
-    weather_reason = _choose_variant(variants, seed=_reason_seed(now, decision, weather_profile))
-    return f"{decision.reason}\n\n{weather_reason}"
-
-
-def _classify_traffic(decision: DecisionResult) -> str:
-    if decision.recommendation == TAKE_NJ_TRANSIT:
-        return "transit"
-    if decision.delay_min > 0:
-        return "elevated"
-    return "smooth"
+    variants = WEATHER_TRAFFIC_REASONS[(decision.traffic_profile, weather_profile)]
+    return _choose_variant(variants, seed=_reason_seed(now, decision, weather_profile))
 
 
 def _classify_weather(
@@ -150,10 +143,15 @@ def _choose_variant(variants: tuple[str, ...], *, seed: str) -> str:
 
 
 def _reason_seed(now: datetime, decision: DecisionResult, weather_profile: str) -> str:
-    return f"{now.date().isoformat()}:{decision.recommendation}:{round(decision.delay_min)}:{weather_profile}"
+    return f"{now.date().isoformat()}:{decision.traffic_profile}:{round(decision.delay_min)}:{weather_profile}"
 
 
 WEATHER_TRAFFIC_REASONS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("smooth", "unavailable"): (
+        "오늘 길이 꽤 순둥순둥해요. 날씨 정보는 잠깐 숨었지만 셔틀 타고 편하게 가도 좋겠습니다~ 🚌🌿✨",
+        "교통이 얌전한 편이에요. 날씨는 직접 한 번만 확인하고 셔틀로 사뿐히 출발해요 🚌✨",
+        "셔틀길이 귀엽게 잘 풀려 있어요. 날씨만 살짝 확인하고 가면 좋겠습니다 🌤️🚌",
+    ),
     ("smooth", "mild"): (
         "날씨도 길도 착한 편이에요. 셔틀 타고 사뿐히 출발하면 딱 좋겠습니다 🚌🌿",
         "비 소식도 크지 않고 차도 얌전해요. 오늘 셔틀 조합 꽤 귀엽게 괜찮아요 ✨🚌",
@@ -179,6 +177,11 @@ WEATHER_TRAFFIC_REASONS: dict[tuple[str, str], tuple[str, ...]] = {
         "길은 셔틀 편이고 바람이 살짝 변수예요. 머리카락만 잘 붙잡고 갑시다 💨✨",
         "교통은 편안한 쪽이에요. 바람만 조심하면 셔틀로 충분해요 🚌🌬️",
     ),
+    ("elevated", "unavailable"): (
+        "차가 살짝 느릿느릿하지만 아직 셔틀이 버틸 만해요. 날씨만 한 번 확인하고 커피랑 같이 출발해요 ☕🚌✨",
+        "교통이 조금 답답해도 셔틀 선택은 아직 괜찮아요. 날씨 체크만 살짝 하고 가요 🚌🌤️",
+        "셔틀길이 완전 빠르진 않지만 감당 가능한 정도예요. 날씨만 확인하고 얌전히 출발합시다 🚌✨",
+    ),
     ("elevated", "mild"): (
         "차는 살짝 밀리지만 날씨가 착해서 셔틀 기다림도 괜찮아 보여요 🌿🚌",
         "길이 조금 느릿해도 날씨는 무난해요. 오늘은 셔틀로 귀엽게 버텨봅시다 ☕🚌",
@@ -203,6 +206,11 @@ WEATHER_TRAFFIC_REASONS: dict[tuple[str, str], tuple[str, ...]] = {
         "차가 조금 밀리고 바람도 있어요. 그래도 환승보다 셔틀 대기가 더 단순해 보여요 🌬️🚌",
         "오늘은 길도 바람도 살짝 삐죽한 조합이에요. 그래도 셔틀이 아직 낫습니다 💨🚌",
         "바람 때문에 이동 동선을 줄이는 게 좋아 보여요. 셔틀로 얌전히 가요 🚌✨",
+    ),
+    ("transit", "unavailable"): (
+        "셔틀길이 오늘은 꽤 삐끗했어요. 날씨는 따로 한 번 확인하고 NJ Transit으로 슝 가는 게 좋아요 🚆✨",
+        "계산기 톡톡 해보니 NJ Transit이 더 이득이에요. 날씨만 체크하고 트랜짓으로 갑시다 🤓🚆",
+        "오늘은 셔틀보다 트랜짓 쪽이 더 든든해요. 날씨 확인하고 NJ Transit으로 빠르게 움직여요 🚆💨",
     ),
     ("transit", "mild"): (
         "날씨가 무난해서 환승길도 크게 부담 없겠어요. 오늘은 NJ Transit으로 슝 가요 🚆✨",

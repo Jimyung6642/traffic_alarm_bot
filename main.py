@@ -16,7 +16,7 @@ from config_loader import (
     resolve_path,
     validate_config,
 )
-from decision import DecisionResult, compose_reason, make_decision
+from decision import DecisionResult, compose_reason, make_decision, recommendation_for_traffic_profile
 from google_routes import GoogleRoutesError, RouteDuration, fetch_traffic_duration, fetch_transit_duration
 from google_weather import (
     CurrentWeather,
@@ -160,6 +160,8 @@ def run_once(*, config_path: str | Path, force_dry_run: bool = False, force_no_s
         route=route,
         transit_route=transit_route,
         decision=decision,
+        current_weather=current_weather,
+        daily_weather=daily_weather,
         dry_run=effective_dry_run,
         send_enabled=effective_send_enabled,
         message_sent=message_sent,
@@ -244,7 +246,7 @@ def _message_context(
     delay_min = decision.delay_min
     context = {
         "current_time": now.strftime("%Y-%m-%d %H:%M %Z"),
-        "recommendation": decision.recommendation,
+        "recommendation": recommendation_for_traffic_profile(decision.traffic_profile),
         "current_drive_min": _format_minutes(route.duration_min),
         "current_transit_min": _format_minutes(transit_route.duration_min),
         "baseline_min": _format_minutes(float(traffic["expected_shuttle_drive_min"])),
@@ -409,6 +411,8 @@ def _record_and_cleanup(
     route: RouteDuration | None = None,
     transit_route: RouteDuration | None = None,
     decision: DecisionResult | None = None,
+    current_weather: CurrentWeather | None = None,
+    daily_weather: DailyWeather | None = None,
     error_message: str | None = None,
 ) -> None:
     traffic = config["traffic"]
@@ -428,8 +432,21 @@ def _record_and_cleanup(
         delay_min=delay_min,
         estimated_transit_min_low=float(traffic["estimated_transit_min_low"]),
         estimated_transit_min_high=float(traffic["estimated_transit_min_high"]),
-        recommendation=decision.recommendation if decision else FALLBACK_RECOMMENDATION,
-        reason=decision.reason if decision else None,
+        recommendation=(
+            recommendation_for_traffic_profile(decision.traffic_profile)
+            if decision
+            else FALLBACK_RECOMMENDATION
+        ),
+        reason=(
+            compose_reason(
+                decision=decision,
+                now=now,
+                current_weather=current_weather,
+                daily_weather=daily_weather,
+            )
+            if decision
+            else None
+        ),
         dry_run=dry_run,
         send_enabled=send_enabled,
         message_sent=message_sent,
